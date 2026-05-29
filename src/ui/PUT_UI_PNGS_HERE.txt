@@ -1,0 +1,17 @@
+Place the provided title/menu PNG files in this folder using these names:
+portfolioviewer.png
+home.png
+3d.png
+videos.png
+audio.png
+browsebytype.png
+audioportfolio.png
+videoportfolio.png
+Imagesportfolio.png
+3dmodelportfolio.png
+logo.png
+images.png
+
+Compatibility fallback names also supported by the HTML/JS:
+video.png
+imageportfolio.png

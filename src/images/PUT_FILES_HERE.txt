@@ -1,0 +1,1 @@
+Put your images files here, preserving subfolders if portfolio.json expects them.
