@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Gage Detschermitsch portfolio showcase for 3D models, illustration, video, and audio previews." />
+  <title>Portfolio Gage Detschermitsch</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand-block" href="#home" aria-label="Gage Detschermitsch portfolio home">
+      <h1 class="brand-image-heading"><img class="brand-ui-img" src="src/ui/gagedetschermitsch.png" alt="Gage Detschermitsch" /></h1>
+    </a>
+    <nav class="top-nav" aria-label="Portfolio sections">
+      <a href="#home" data-route-link="home" aria-label="Home"><img class="nav-ui-img" src="src/ui/home.png" alt="Home" /></a>
+      <a href="#models" data-route-link="models" aria-label="3D"><img class="nav-ui-img" src="src/ui/3d.png" alt="3D" /></a>
+      <a href="#images" data-route-link="images" aria-label="Images"><img class="nav-ui-img" src="src/ui/images.png" alt="Images" /></a>
+      <a href="#videos" data-route-link="videos" aria-label="Video"><img class="nav-ui-img" src="src/ui/videos.png" data-fallback-src="src/ui/video.png" alt="Video" /></a>
+      <a href="#audio" data-route-link="audio" aria-label="Audio"><img class="nav-ui-img" src="src/ui/audio.png" alt="Audio" /></a>
+    </nav>
+  </header>
+
+  <main>
+    <section id="homeView" class="view active-view" data-view="home">
+      <section class="hero">
+        <div>
+          <h2 class="image-heading hero-image-heading"><img class="heading-ui-img hero-ui-img" src="src/ui/portfolioviewer.png" alt="Creative portfolio hub for preview" /></h2>
+        </div>
+      </section>
+      <section class="portfolio-section">
+        <div class="section-heading">
+          <p class="eyebrow">Portfolio Categories</p>
+          <h2 class="image-heading"><img class="heading-ui-img browse-ui-img" src="src/ui/browsebytype.png" alt="Browse by Type" /></h2>
+        </div>
+        <div id="homeCategoryGrid" class="grid category-grid"></div>
+      </section>
+    </section>
+
+    <section id="modelsView" class="view portfolio-section" data-view="models">
+      <div class="section-heading"><p class="eyebrow">3D Model Viewer</p><h2 class="image-heading"><img class="heading-ui-img" src="src/ui/3dmodelportfolio.png" alt="3D Models" /></h2></div>
+      <div class="notice model-notice"><span><strong>Model note:</strong> models do not include textures. Texture models are in the works.</span><button id="modelLoadToggle" class="confirm-adult model-load-toggle" type="button" aria-pressed="false">Load all: Off</button></div>
+      <div id="modelsGrid" class="grid model-grid"></div>
+      <div id="modelDownloadsGrid" class="grid"></div>
+    </section>
+
+    <section id="imagesView" class="view portfolio-section" data-view="images">
+      <div class="section-heading"><p class="eyebrow">Illustration & Concept Art</p><h2 class="image-heading"><img class="heading-ui-img" src="src/ui/Imagesportfolio.png" data-fallback-src="src/ui/imageportfolio.png" alt="Image Portfolio" /></h2></div>
+      <div class="notice adult-notice"><span><strong>Viewer note:</strong> mature, violent, bloody, or sexual-theme image previews are hidden by default and require an 18+ confirmation before viewing.</span><button id="censorshipToggle" class="confirm-adult censorship-toggle" type="button" aria-pressed="false">Censorship: On</button></div>
+      <div id="imagesGrid" class="grid"></div>
+    </section>
+
+    <section id="videosView" class="view portfolio-section" data-view="videos">
+      <div class="section-heading"><p class="eyebrow">Preview Clips</p><h2 class="image-heading"><img class="heading-ui-img" src="src/ui/videoportfolio.png" alt="Video Portfolio" /></h2></div>
+      <div id="videosGrid" class="grid"></div>
+    </section>
+
+    <section id="audioView" class="view portfolio-section" data-view="audio">
+      <div class="section-heading"><p class="eyebrow">Vocal / Audio Samples</p><h2 class="image-heading"><img class="heading-ui-img" src="src/ui/audioportfolio.png" alt="Audio Portfolio" /></h2></div>
+      <div id="audioGrid" class="grid"></div>
+    </section>
+  </main>
+
+  <div id="lightbox" class="lightbox" hidden>
+    <button id="lightboxClose" class="lightbox-close" type="button" aria-label="Close media preview">×</button>
+    <img id="lightboxImage" src="" alt="" />
+    <video id="lightboxVideo" controls preload="metadata" hidden></video>
+    <div id="lightboxCaption" class="lightbox-caption"></div>
+  </div>
+
+  <footer><p>PortfolioViewer© <span id="year"></span> Gage Detschermitsch. Portfolio display only.</p></footer>
+  <script src="js/app.js"></script>
+</body>
+</html>
