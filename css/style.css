@@ -105,3 +105,62 @@
   .heading-ui-img{max-height:130px}
   .hero-ui-img{max-height:190px}
 }
+
+
+/* Mobile-safe 18+ gate. Replaces fragile native confirm() popups with a touch-safe in-page modal. */
+.adult-modal[hidden]{display:none!important}
+.adult-modal{
+  position:fixed;
+  inset:0;
+  z-index:10000;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:1.25rem;
+  background:rgba(0,0,0,.78);
+  backdrop-filter:blur(8px);
+}
+.adult-modal-box{
+  width:min(92vw,440px);
+  border:1px solid var(--line);
+  border-radius:20px;
+  background:linear-gradient(180deg,rgba(24,24,28,.98),rgba(8,8,11,.98));
+  box-shadow:0 24px 70px rgba(0,0,0,.55);
+  padding:1.25rem;
+  color:var(--text);
+}
+.adult-modal-box h3{
+  margin:0 0 .6rem;
+  color:var(--accent);
+  font-size:1.35rem;
+}
+.adult-modal-box p{
+  margin:0 0 1rem;
+  color:var(--muted);
+  line-height:1.45;
+}
+.adult-modal-actions{
+  display:flex;
+  gap:.75rem;
+  flex-wrap:wrap;
+}
+.adult-modal-actions button{
+  min-height:44px;
+  border-radius:999px;
+  padding:.7rem 1rem;
+  cursor:pointer;
+}
+.adult-modal-confirm{flex:1 1 190px}
+.adult-modal-cancel{
+  flex:1 1 110px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.06);
+  color:var(--text);
+}
+.adult-modal-lock{overflow:hidden}
+@media(max-width:720px){
+  .adult-modal{align-items:flex-end;padding:1rem}
+  .adult-modal-box{width:100%;padding:1rem;border-radius:18px}
+  .adult-modal-actions{flex-direction:column}
+  .adult-modal-actions button{width:100%}
+}

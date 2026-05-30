@@ -27,6 +27,11 @@ const lightboxCaption = document.getElementById("lightboxCaption");
 const lightboxClose = document.getElementById("lightboxClose");
 const censorshipToggle = document.getElementById("censorshipToggle");
 const modelLoadToggle = document.getElementById("modelLoadToggle");
+const adultModal = document.getElementById("adultModal");
+const adultModalTitle = document.getElementById("adultModalTitle");
+const adultModalMessage = document.getElementById("adultModalMessage");
+const adultModalConfirm = document.getElementById("adultModalConfirm");
+const adultModalCancel = document.getElementById("adultModalCancel");
 
 if (yearEl) yearEl.textContent = new Date().getFullYear();
 
@@ -354,6 +359,62 @@ function renderDownloads(items = []) {
   grids.modelDownloads.innerHTML = items.length ? items.map(item => `<article class="card"><div class="card-body"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p><a class="badge" href="${esc(item.src)}" download>Download ${esc(item.tag || "file")}</a></div></article>`).join("") : "";
 }
 
+function askAdultConfirmation({ title = "18+ Confirmation", message = "You must confirm you are 18 years of age or older to view this content.", confirmText = "I am 18+" } = {}) {
+  // Mobile repair: do not rely on window.confirm(). Some mobile/privacy browsers
+  // suppress native dialogs or return false after touch events. This in-page
+  // modal is normal HTML, so it works on iOS Safari, DuckDuckGo, Chrome, and
+  // Android WebView while preserving the same desktop behavior.
+  return new Promise(resolve => {
+    if (!adultModal || !adultModalConfirm || !adultModalCancel) {
+      resolve(window.confirm(message));
+      return;
+    }
+
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    adultModalTitle.textContent = title;
+    adultModalMessage.textContent = message;
+    adultModalConfirm.textContent = confirmText;
+    adultModal.hidden = false;
+    adultModal.classList.add("adult-modal-open");
+    document.body.classList.add("adult-modal-lock");
+
+    const finish = approved => {
+      adultModal.hidden = true;
+      adultModal.classList.remove("adult-modal-open");
+      document.body.classList.remove("adult-modal-lock");
+      adultModalConfirm.removeEventListener("click", onConfirm);
+      adultModalCancel.removeEventListener("click", onCancel);
+      adultModal.removeEventListener("click", onBackdrop);
+      document.removeEventListener("keydown", onKeydown);
+      if (previousFocus) previousFocus.focus({ preventScroll: true });
+      resolve(approved);
+    };
+
+    const onConfirm = event => {
+      event.preventDefault();
+      finish(true);
+    };
+    const onCancel = event => {
+      event.preventDefault();
+      finish(false);
+    };
+    const onBackdrop = event => {
+      if (event.target === adultModal) finish(false);
+    };
+    const onKeydown = event => {
+      if (event.key === "Escape") finish(false);
+    };
+
+    adultModalConfirm.addEventListener("click", onConfirm, { once: true });
+    adultModalCancel.addEventListener("click", onCancel, { once: true });
+    adultModal.addEventListener("click", onBackdrop);
+    document.addEventListener("keydown", onKeydown);
+
+    requestAnimationFrame(() => adultModalConfirm.focus({ preventScroll: true }));
+  });
+}
+
 function updateCensorshipButton() {
   if (!censorshipToggle) return;
   censorshipToggle.textContent = state.censorshipOff ? "Censorship: Off" : "Censorship: On";
@@ -429,13 +490,22 @@ function renderImages(items = []) {
     return collapsibleSection(bucket.title, grid, { count: bucket.items.length });
   }).join("");
 
-  grids.images.querySelectorAll("[data-mature-confirm=\"true\"]").forEach(button => button.addEventListener("click", () => {
+  grids.images.querySelectorAll("[data-mature-confirm=\"true\"]").forEach(button => button.addEventListener("click", async event => {
+    event.preventDefault();
+    event.stopPropagation();
     const bucketItems = bucketLookup[button.dataset.imageBucket] || [];
     const item = bucketItems[Number(button.dataset.imageIndex)];
     if (!item) return;
-    if (state.adultConfirmed || confirm("Confirm you are 18+ to reveal this mature portfolio image?")) {
+    if (state.adultConfirmed) {
       revealOneMatureImage(item);
+      return;
     }
+    const approved = await askAdultConfirmation({
+      title: "18+ Image Confirmation",
+      message: "Confirm you are 18+ to reveal this mature portfolio image?",
+      confirmText: "I am 18+ — reveal image"
+    });
+    if (approved === true) revealOneMatureImage(item);
   }));
 
   document.querySelectorAll(".image-open").forEach(button => button.addEventListener("click", () => {
@@ -711,13 +781,15 @@ modelLoadToggle?.addEventListener("click", () => {
   renderModels(state.data.models || []);
 });
 
-function confirmAdultAndReveal() {
-  // Main Viewer note censorship button must always show the age prompt
-  // before unlocking all mature previews, even if a prior per-image reveal
-  // happened during the same browser session.
-  if (confirm("Confirm you are 18+ to turn censorship off and reveal mature portfolio image previews?")) {
-    revealAllMaturePreviews();
-  }
+async function confirmAdultAndReveal() {
+  // Main Viewer note censorship button must always show the age gate before
+  // unlocking all mature previews, even if a prior per-image reveal happened.
+  const approved = await askAdultConfirmation({
+    title: "18+ Portfolio Confirmation",
+    message: "Confirm you are 18+ to turn censorship off and reveal mature portfolio image previews?",
+    confirmText: "I am 18+ — turn censorship off"
+  });
+  if (approved === true) revealAllMaturePreviews();
 }
 
 censorshipToggle?.addEventListener("click", event => {
