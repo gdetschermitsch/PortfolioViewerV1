@@ -445,12 +445,53 @@ function renderImages(items = []) {
   }));
 }
 
+function videoType(src = "") {
+  const clean = String(src).split("?")[0].toLowerCase();
+  if (clean.endsWith(".mp4") || clean.endsWith(".m4v")) return "video/mp4";
+  if (clean.endsWith(".webm")) return "video/webm";
+  if (clean.endsWith(".mov")) return "video/quicktime";
+  return "";
+}
+
+function configureMobileVideo(video) {
+  if (!video) return;
+  video.setAttribute("controls", "");
+  video.setAttribute("playsinline", "");
+  video.setAttribute("webkit-playsinline", "");
+  video.preload = "metadata";
+}
+
+function clearVideo(video) {
+  if (!video) return;
+  video.pause();
+  video.innerHTML = "";
+  video.removeAttribute("src");
+  video.removeAttribute("poster");
+  video.load();
+}
+
+function setVideoSource(video, item = {}) {
+  configureMobileVideo(video);
+  clearVideo(video);
+
+  const source = document.createElement("source");
+  source.src = item.src || "";
+
+  const type = videoType(item.src || "");
+  if (type) source.type = type;
+
+  video.appendChild(source);
+
+  if (item.poster) video.poster = item.poster;
+  else video.removeAttribute("poster");
+
+  video.load();
+}
+
 function openLightbox(item = {}) {
   if (!lightbox || !lightboxImage) return;
   if (lightboxVideo) {
-    lightboxVideo.pause();
-    lightboxVideo.removeAttribute("src");
-    lightboxVideo.load();
+    clearVideo(lightboxVideo);
     lightboxVideo.hidden = true;
   }
   lightboxImage.hidden = false;
@@ -468,13 +509,20 @@ function openVideoLightbox(item = {}) {
     lightboxImage.src = "";
     lightboxImage.alt = "";
   }
+
   lightboxVideo.hidden = false;
-  lightboxVideo.src = item.src || "";
-  if (item.poster) lightboxVideo.poster = item.poster;
-  else lightboxVideo.removeAttribute("poster");
+  setVideoSource(lightboxVideo, item);
+
   lightboxCaption.textContent = item.title || "Video preview";
   lightbox.hidden = false;
   document.body.classList.add("no-scroll");
+
+  const playAttempt = lightboxVideo.play();
+  if (playAttempt && typeof playAttempt.catch === "function") {
+    playAttempt.catch(() => {
+      // Mobile Safari/Chrome may require the user to tap the visible controls.
+    });
+  }
 }
 
 function closeLightbox() {
@@ -484,16 +532,18 @@ function closeLightbox() {
   lightboxImage.src = "";
   lightboxCaption.textContent = "";
   if (lightboxVideo) {
-    lightboxVideo.pause();
-    lightboxVideo.removeAttribute("src");
-    lightboxVideo.load();
+    clearVideo(lightboxVideo);
     lightboxVideo.hidden = true;
   }
   document.body.classList.remove("no-scroll");
 }
 
 function renderVideos(items = []) {
-  grids.videos.innerHTML = items.length ? items.map(item => `<article class="card"><video controls preload="metadata" ${item.poster ? `poster="${esc(item.poster)}"` : ""}><source src="${esc(item.src)}">Your browser does not support embedded video.</video>${cardBody(item)}</article>`).join("") : empty("No videos listed.");
+  grids.videos.innerHTML = items.length
+    ? items.map(item => `<article class="card"><video controls playsinline webkit-playsinline preload="metadata" ${item.poster ? `poster="${esc(item.poster)}"` : ""}><source src="${esc(item.src)}" ${videoType(item.src) ? `type="${esc(videoType(item.src))}"` : ""}>Your browser does not support embedded video.</video>${cardBody(item)}</article>`).join("")
+    : empty("No videos listed.");
+
+  grids.videos.querySelectorAll("video").forEach(configureMobileVideo);
 }
 
 function renderAudio(items = []) {
