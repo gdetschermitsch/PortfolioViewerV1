@@ -449,24 +449,99 @@ function videoType(src = "") {
   const clean = String(src).split("?")[0].toLowerCase();
   if (clean.endsWith(".mp4") || clean.endsWith(".m4v")) return "video/mp4";
   if (clean.endsWith(".webm")) return "video/webm";
+  if (clean.endsWith(".ogv") || clean.endsWith(".ogg")) return "video/ogg";
   if (clean.endsWith(".mov")) return "video/quicktime";
-  return "";
+  return "video/mp4";
+}
+
+function isIOSWebKit() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+function addUniqueVideoCandidate(list, src) {
+  const value = String(src || "").trim();
+  if (value && !list.includes(value)) list.push(value);
+}
+
+function mp4SiblingFor(src = "") {
+  const value = String(src || "").trim();
+  if (!value || !/\.webm(\?|$)/i.test(value)) return "";
+  return value.replace(/\.webm(\?.*)?$/i, ".mp4$1");
+}
+
+function videoSourceList(item = {}) {
+  const declared = [];
+  const explicitMobile = [];
+  const explicitFallbacks = [];
+
+  // These fields are intentionally accepted so portfolio.json can use whichever
+  // name was already typed during earlier edits.
+  [item.mobileSrc, item.iosSrc, item.mp4, item.mp4Src, item.srcMp4].forEach(src => addUniqueVideoCandidate(explicitMobile, src));
+  [item.fallbackSrc, item.fallback, item.altSrc].forEach(src => addUniqueVideoCandidate(explicitFallbacks, src));
+  addUniqueVideoCandidate(declared, item.src);
+
+  if (Array.isArray(item.sources)) {
+    item.sources.forEach(source => {
+      const src = typeof source === "string" ? source : source && source.src;
+      addUniqueVideoCandidate(declared, src);
+    });
+  }
+
+  // Critical mobile repair: if the manifest only lists a .webm, automatically
+  // try the same file name as .mp4 first on iOS/WebKit. This fixes repos that
+  // already contain an MP4 sibling but forgot to declare it in portfolio.json.
+  const inferredMp4 = [];
+  [...explicitMobile, ...declared, ...explicitFallbacks].forEach(src => addUniqueVideoCandidate(inferredMp4, mp4SiblingFor(src)));
+
+  const candidates = [];
+  if (isIOSWebKit()) {
+    [...explicitMobile, ...inferredMp4, ...explicitFallbacks, ...declared].forEach(src => addUniqueVideoCandidate(candidates, src));
+  } else {
+    [...declared, ...explicitMobile, ...explicitFallbacks, ...inferredMp4].forEach(src => addUniqueVideoCandidate(candidates, src));
+  }
+
+  // Prefer sources the current browser claims it can play, but keep every source
+  // as a fallback because canPlayType() is not perfectly reliable across iOS shells.
+  const probe = document.createElement("video");
+  candidates.sort((a, b) => {
+    const ap = probe.canPlayType(videoType(a)) ? 0 : 1;
+    const bp = probe.canPlayType(videoType(b)) ? 0 : 1;
+    if (ap !== bp) return ap - bp;
+    if (isIOSWebKit()) {
+      const amp4 = /\.(mp4|m4v)(\?|$)/i.test(a) ? 0 : 1;
+      const bmp4 = /\.(mp4|m4v)(\?|$)/i.test(b) ? 0 : 1;
+      return amp4 - bmp4;
+    }
+    return 0;
+  });
+
+  return candidates.map(src => ({ src, type: videoType(src) }));
 }
 
 function configureMobileVideo(video) {
   if (!video) return;
+  video.controls = true;
+  video.playsInline = true;
+  video.preload = "metadata";
   video.setAttribute("controls", "");
   video.setAttribute("playsinline", "");
   video.setAttribute("webkit-playsinline", "");
-  video.preload = "metadata";
+  video.setAttribute("x5-playsinline", "");
+  video.setAttribute("x-webkit-airplay", "allow");
+  video.setAttribute("controlslist", "nodownload");
+  if (video.dataset.mobilePlaybackWired !== "true") {
+    video.dataset.mobilePlaybackWired = "true";
+    video.addEventListener("play", () => stopOtherMedia(video));
+  }
 }
 
 function clearVideo(video) {
   if (!video) return;
   video.pause();
-  video.innerHTML = "";
   video.removeAttribute("src");
   video.removeAttribute("poster");
+  video.innerHTML = "";
   video.load();
 }
 
@@ -474,18 +549,54 @@ function setVideoSource(video, item = {}) {
   configureMobileVideo(video);
   clearVideo(video);
 
-  const source = document.createElement("source");
-  source.src = item.src || "";
-
-  const type = videoType(item.src || "");
-  if (type) source.type = type;
-
-  video.appendChild(source);
+  const sources = videoSourceList(item);
+  sources.forEach(entry => {
+    const source = document.createElement("source");
+    source.src = entry.src;
+    if (entry.type) source.type = entry.type;
+    video.appendChild(source);
+  });
 
   if (item.poster) video.poster = item.poster;
   else video.removeAttribute("poster");
 
   video.load();
+}
+
+function videoFallbackMessage(item = {}) {
+  const src = String(item.src || item.mobileSrc || item.iosSrc || item.mp4 || item.mp4Src || item.srcMp4 || "");
+  const webmOnly = /\.webm(\?|$)/i.test(src) && !item.mobileSrc && !item.iosSrc && !item.mp4 && !item.mp4Src && !item.srcMp4 && !item.fallbackSrc;
+  return webmOnly
+    ? "Mobile WebKit could not play this source. Add an H.264/AAC .mp4 beside the WebM or set mobileSrc/mp4 in portfolio.json."
+    : "This browser could not load the video. Check the file path, codec, and server MIME type.";
+}
+
+function showVideoErrorNote(video, item = {}) {
+  const card = video.closest(".card") || video.parentElement;
+  if (!card || card.querySelector(".video-error-note")) return;
+  const note = document.createElement("p");
+  note.className = "video-error-note";
+  note.textContent = videoFallbackMessage(item);
+  card.appendChild(note);
+}
+
+function wireVideoDiagnostics(video, item = {}) {
+  if (!video || video.dataset.videoDiagnosticsWired === "true") return;
+  video.dataset.videoDiagnosticsWired = "true";
+  video.addEventListener("error", () => showVideoErrorNote(video, item));
+  video.querySelectorAll("source").forEach(source => {
+    source.addEventListener("error", () => {
+      window.setTimeout(() => {
+        if (video.networkState === HTMLMediaElement.NETWORK_NO_SOURCE || video.error) showVideoErrorNote(video, item);
+      }, 0);
+    });
+  });
+}
+
+function stopOtherMedia(active) {
+  document.querySelectorAll("audio, video").forEach(media => {
+    if (media !== active && !media.paused) media.pause();
+  });
 }
 
 function openLightbox(item = {}) {
@@ -512,16 +623,17 @@ function openVideoLightbox(item = {}) {
 
   lightboxVideo.hidden = false;
   setVideoSource(lightboxVideo, item);
+  wireVideoDiagnostics(lightboxVideo, item);
 
   lightboxCaption.textContent = item.title || "Video preview";
   lightbox.hidden = false;
   document.body.classList.add("no-scroll");
 
+  // This function is called from a user tap/click, so play() is allowed on mobile
+  // when the video codec is supported. If WebKit blocks it, controls remain visible.
   const playAttempt = lightboxVideo.play();
   if (playAttempt && typeof playAttempt.catch === "function") {
-    playAttempt.catch(() => {
-      // Mobile Safari/Chrome may require the user to tap the visible controls.
-    });
+    playAttempt.catch(() => {});
   }
 }
 
@@ -538,12 +650,22 @@ function closeLightbox() {
   document.body.classList.remove("no-scroll");
 }
 
+function videoMarkup(item = {}) {
+  const sources = videoSourceList(item);
+  const sourceMarkup = sources.map(entry => `<source src="${esc(entry.src)}" ${entry.type ? `type="${esc(entry.type)}"` : ""}>`).join("");
+  return `<video controls playsinline webkit-playsinline x5-playsinline preload="metadata" ${item.poster ? `poster="${esc(item.poster)}"` : ""}>${sourceMarkup}Your browser does not support embedded video.</video>`;
+}
+
 function renderVideos(items = []) {
   grids.videos.innerHTML = items.length
-    ? items.map(item => `<article class="card"><video controls playsinline webkit-playsinline preload="metadata" ${item.poster ? `poster="${esc(item.poster)}"` : ""}><source src="${esc(item.src)}" ${videoType(item.src) ? `type="${esc(videoType(item.src))}"` : ""}>Your browser does not support embedded video.</video>${cardBody(item)}</article>`).join("")
+    ? items.map((item, index) => `<article class="card" data-video-index="${index}">${videoMarkup(item)}${cardBody(item)}</article>`).join("")
     : empty("No videos listed.");
 
-  grids.videos.querySelectorAll("video").forEach(configureMobileVideo);
+  grids.videos.querySelectorAll("video").forEach((video, index) => {
+    const item = items[index] || {};
+    configureMobileVideo(video);
+    wireVideoDiagnostics(video, item);
+  });
 }
 
 function renderAudio(items = []) {
@@ -555,11 +677,7 @@ function wireExclusiveAudioPlayers() {
   document.querySelectorAll("audio").forEach(player => {
     if (player.dataset.exclusiveWired === "true") return;
     player.dataset.exclusiveWired = "true";
-    player.addEventListener("play", () => {
-      document.querySelectorAll("audio").forEach(other => {
-        if (other !== player) other.pause();
-      });
-    });
+    player.addEventListener("play", () => stopOtherMedia(player));
   });
 }
 
