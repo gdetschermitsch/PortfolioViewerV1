@@ -568,5 +568,68 @@ lightbox?.addEventListener("click", event => {
 document.addEventListener("keydown", event => {
   if (event.key === "Escape") closeLightbox();
 });
+// existing code above...
+
+lightboxClose?.addEventListener("click", closeLightbox);
+lightbox?.addEventListener("click", event => {
+  if (event.target === lightbox) closeLightbox();
+});
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") closeLightbox();
+});
+
+
+// ===== MOBILE VIDEO FIX: paste fix here =====
+(function () {
+  "use strict";
+
+  function stopOtherMedia(active) {
+    document.querySelectorAll("audio, video").forEach(media => {
+      if (media !== active && !media.paused) media.pause();
+    });
+  }
+
+  function makeVideoMobileSafe(video) {
+    if (!video) return;
+
+    video.controls = true;
+    video.preload = "metadata";
+    video.playsInline = true;
+    video.setAttribute("playsinline", "");
+    video.setAttribute("webkit-playsinline", "");
+    video.setAttribute("x5-playsinline", "");
+    video.setAttribute("x-webkit-airplay", "allow");
+
+    video.addEventListener("play", () => stopOtherMedia(video));
+  }
+
+  const oldOpenVideoLightbox = openVideoLightbox;
+
+  openVideoLightbox = function (item = {}) {
+    oldOpenVideoLightbox(item);
+
+    if (!lightboxVideo) return;
+
+    makeVideoMobileSafe(lightboxVideo);
+    stopOtherMedia(lightboxVideo);
+
+    const playAttempt = lightboxVideo.play();
+    if (playAttempt && typeof playAttempt.catch === "function") {
+      playAttempt.catch(() => {
+        lightboxVideo.load();
+      });
+    }
+  };
+
+  document.addEventListener("play", event => {
+    if (event.target instanceof HTMLMediaElement) {
+      stopOtherMedia(event.target);
+    }
+  }, true);
+
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll("video").forEach(makeVideoMobileSafe);
+  });
+})();
 
 boot();
