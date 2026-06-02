@@ -1105,12 +1105,6 @@
       "tag": "FullSongs"
     },
     {
-      "title": "poltergeist",
-      "description": "FullSongs",
-      "src": "src/audio/FullSongs/poltergeist .m4a",
-      "tag": "FullSongs"
-    },
-    {
       "title": "silvertonguebrokenfingers",
       "description": "FullSongs",
       "src": "src/audio/FullSongs/silvertonguebrokenfingers.m4a",
